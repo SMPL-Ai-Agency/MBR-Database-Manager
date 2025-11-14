@@ -82,19 +82,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-8">
         <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-50 mb-2">Dashboard for {homePerson.first_name} {homePerson.last_name}</h2>
-            <p className="text-gray-500 dark:text-gray-400">An overview of your family tree and genetic history.</p>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-50 mb-2">Dataset Manager</h2>
+            <p className="text-gray-500 dark:text-gray-400">Manage and visualize your genealogy dataset for AI model training.</p>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Ancestors" value={ancestry.length - 1} icon={ICONS.USERS} />
+            {/* Added Math.max to prevent negative counts if data is empty */}
+            <StatCard title="Ancestors" value={Math.max(0, ancestry.length - 1)} icon={ICONS.USERS} />
             <StatCard title="Descendants" value={descendants.length} icon={ICONS.USERS} />
             <StatCard title="Total People" value={people.length} icon={ICONS.USERS} />
-            <StatCard title="DNA Matches" value={ancestry.filter(p => p.dna_match).length + descendants.filter(p => p.dna_match).length + lateral.filter(p => p.dna_match).length} icon={ICONS.DNA} />
+            <StatCard title="DNA Matches" value={people.filter(p => p.dna_match).length} icon={ICONS.DNA} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
+        {/* Changed grid to have two equal columns (lg:grid-cols-2) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+                <Chatbot 
+                    connectionSettings={connectionSettings}
+                    people={people}
+                    marriages={marriages}
+                    refreshData={refreshData}
+                />
+            </div>
+            <div className="space-y-6">
                 <Card 
                     title="Home Person Details" 
                     icon={ICONS.USER}
@@ -196,14 +206,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </Card>
                 <RelationList title="Lateral Relations" relations={lateral} onPersonClick={onViewPerson} collapsible defaultCollapsed />
                 <RelationList title="Descendants" relations={descendants} onPersonClick={onViewPerson} collapsible defaultCollapsed />
-            </div>
-            <div className="lg:col-span-1">
-                <Chatbot 
-                    connectionSettings={connectionSettings}
-                    people={people}
-                    marriages={marriages}
-                    refreshData={refreshData}
-                />
             </div>
         </div>
     </div>
