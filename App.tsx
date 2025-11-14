@@ -15,6 +15,15 @@ import { ICONS } from './constants';
 
 type View = 'dashboard' | 'people' | 'settings';
 
+const formatPermissionError = (errorMessage: string): string => {
+    if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('permission denied')) {
+        const tableNameMatch = errorMessage.match(/permission denied for table "(\w+)"/i) || errorMessage.match(/permission denied for table (\w+)/i);
+        const tableName = tableNameMatch ? tableNameMatch[1] : '[table_name]';
+        return `Permission denied for table "${tableName}". This means Row Level Security (RLS) is enabled but no policy allows access.\n\nPlease run the following SQL command in your Supabase SQL Editor to fix this:\n\nCREATE POLICY "Allow public read access to ${tableName}" ON public.${tableName} FOR SELECT USING (true);`;
+    }
+    return errorMessage;
+};
+
 const App: React.FC = () => {
     const [view, setView] = useState<View>('dashboard');
     const [people, setPeople] = useState<Person[]>([]);
@@ -24,6 +33,7 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
     const [isDemoMode, setIsDemoMode] = useState(false);
+    const [dataError, setDataError] = useState<string | null>(null);
     
     const [isPersonFormOpen, setIsPersonFormOpen] = useState(false);
     const [editingPerson, setEditingPerson] = useState<Person | null>(null);
@@ -48,27 +58,10 @@ const App: React.FC = () => {
     
     const apiService = useMemo(() => isDemoMode ? mockApi : api, [isDemoMode]);
 
-    const handleSettingsChange = (newSettings: ConnectionSettings) => {
-        setConnectionSettings(newSettings);
-        localStorage.setItem('connectionSettings', JSON.stringify(newSettings));
-        setIsDemoMode(false); // Saving new settings exits demo mode
-        if (newSettings.supabaseUrl && newSettings.supabaseAnonKey) {
-            try {
-                initializeClient(newSettings.supabaseUrl, newSettings.supabaseAnonKey);
-                setIsSupabaseConnected(true);
-                refreshData(true, false); // force refresh with new settings
-            } catch (error) {
-                console.error("Failed to initialize Supabase client with new settings:", error);
-                setIsSupabaseConnected(false);
-            }
-        } else {
-             setIsSupabaseConnected(false);
-        }
-    };
-    
     const refreshData = useCallback(async (force = false, useDemo = isDemoMode) => {
         if (!isSupabaseConnected && !force && !useDemo) return;
         setIsLoading(true);
+        setDataError(null); // Clear previous errors
         const currentApiService = useDemo ? mockApi : api;
 
         try {
@@ -90,16 +83,43 @@ const App: React.FC = () => {
                 setGenealogyData(null);
             }
             if (!useDemo) setIsSupabaseConnected(true);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to load data:", error);
+            const friendlyError = formatPermissionError(error.message);
+            setDataError(friendlyError);
             if (!useDemo) setIsSupabaseConnected(false); 
+            // Re-throw the error so the calling function can handle it
+            throw new Error(friendlyError);
         } finally {
             setIsLoading(false);
         }
     }, [isSupabaseConnected, isDemoMode]);
+
+    const handleSettingsChange = async (newSettings: ConnectionSettings) => {
+        setConnectionSettings(newSettings);
+        localStorage.setItem('connectionSettings', JSON.stringify(newSettings));
+        setIsDemoMode(false);
+        setDataError(null); // Clear errors on new attempt
+
+        if (newSettings.supabaseUrl && newSettings.supabaseAnonKey) {
+            try {
+                initializeClient(newSettings.supabaseUrl, newSettings.supabaseAnonKey);
+                // Temporarily set connected to true to allow refreshData to run
+                setIsSupabaseConnected(true); 
+                await refreshData(true, false);
+                setView('dashboard'); // Navigate on success
+            } catch (error: any) {
+                setIsSupabaseConnected(false); // Set back to false on error
+                // Error is already set by refreshData, so the UI will update with the helpful message.
+            }
+        } else {
+            setIsSupabaseConnected(false);
+        }
+    };
     
     const handleUseDemoData = () => {
         setIsDemoMode(true);
+        setDataError(null);
         refreshData(true, true);
     };
 
@@ -110,8 +130,9 @@ const App: React.FC = () => {
                 initializeClient(supabaseUrl, supabaseAnonKey);
                 setIsSupabaseConnected(true);
                 refreshData(true, false);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to initialize Supabase client on startup:", error);
+                setDataError(formatPermissionError(error.message));
                 setIsSupabaseConnected(false);
                 setIsLoading(false);
             }
@@ -136,14 +157,14 @@ const App: React.FC = () => {
         } else {
             await apiService.addPerson({ ...personData, is_home_person: people.length === 0 });
         }
-        await refreshData(true);
+        await refreshData(true, isDemoMode);
         handleClosePersonForm();
     };
     
     const handleDeletePerson = async (personId: string) => {
         if (window.confirm("Are you sure you want to delete this person?")) {
             await apiService.deletePerson(personId);
-            await refreshData(true);
+            await refreshData(true, isDemoMode);
         }
     };
     
@@ -163,6 +184,14 @@ const App: React.FC = () => {
         handleOpenPersonForm(person);
     };
 
+    const handleSetHomePerson = async (personId: string) => {
+        if (window.confirm("Are you sure you want to set this person as the new home person? The dashboard will reload.")) {
+            await apiService.updatePerson(personId, { is_home_person: true });
+            await refreshData(true, isDemoMode);
+            setView('dashboard');
+        }
+    };
+
     const handleOpenMarriageForm = (marriage?: Marriage) => {
         setEditingMarriage(marriage || null);
         setIsMarriageFormOpen(true);
@@ -179,7 +208,7 @@ const App: React.FC = () => {
         } else {
             await apiService.addMarriage(marriageData);
         }
-        await refreshData(true);
+        await refreshData(true, isDemoMode);
         handleCloseMarriageForm();
     };
 
@@ -203,6 +232,12 @@ const App: React.FC = () => {
                     <div className="text-accent mb-4 w-16 h-16 mx-auto">{ICONS.DATABASE}</div>
                     <h2 className="text-2xl font-bold mb-4">Database Not Connected</h2>
                     <p className="text-gray-500 dark:text-gray-400 mb-6">Configure your Supabase connection in settings or explore the app with sample data.</p>
+                    {dataError && (
+                        <div className="my-4 p-4 text-left bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 rounded-lg">
+                            <p className="font-bold">An error occurred:</p>
+                            <p className="text-sm whitespace-pre-wrap">{dataError}</p>
+                        </div>
+                    )}
                     <div className="flex justify-center gap-4">
                          <button
                             onClick={() => setView('settings')}
@@ -247,7 +282,7 @@ const App: React.FC = () => {
                             onEditMarriage={handleOpenMarriageForm}
                             onEditPerson={handleOpenPersonForm}
                             connectionSettings={connectionSettings}
-                            refreshData={() => refreshData(true)}
+                            refreshData={() => refreshData(true, isDemoMode)}
                         />;
             case 'people':
                  if (!homePerson) return null;
@@ -257,6 +292,7 @@ const App: React.FC = () => {
                             onDelete={handleDeletePerson}
                             homePersonId={homePerson.id}
                             onViewPerson={handleViewPerson}
+                            onSetHomePerson={handleSetHomePerson}
                         />;
             default:
                 return null;
@@ -290,6 +326,7 @@ const App: React.FC = () => {
                     onClose={handleCloseViewPerson}
                     person={viewingPerson}
                     onEdit={handleEditFromDetails}
+                    onSetHomePerson={handleSetHomePerson}
                 />
             )}
             {isMarriageFormOpen && (

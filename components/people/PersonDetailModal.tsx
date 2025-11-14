@@ -10,9 +10,10 @@ interface PersonDetailModalProps {
   onClose: () => void;
   person: Person | null;
   onEdit: (person: Person) => void;
+  onSetHomePerson: (personId: string) => void;
 }
 
-export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({ isOpen, onClose, person, onEdit }) => {
+export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({ isOpen, onClose, person, onEdit, onSetHomePerson }) => {
   if (!person) return null;
 
   const fullName = `${person.first_name} ${person.middle_name || ''} ${person.last_name} ${person.suffix || ''}`.replace(/\s+/g, ' ').trim();
@@ -35,9 +36,16 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({ isOpen, on
       onClose={onClose}
       title={fullName}
       footer={
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onClose}>Close</Button>
-          <Button onClick={() => onEdit(person)}>Edit Person</Button>
+        <div className="flex justify-between items-center w-full">
+            <div>
+                {!person.is_home_person && (
+                    <Button variant="secondary" onClick={() => onSetHomePerson(person.id)}>Set as Home</Button>
+                )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={onClose}>Close</Button>
+              <Button onClick={() => onEdit(person)}>Edit Person</Button>
+            </div>
         </div>
       }
     >

@@ -19,6 +19,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({ connectionSettings, people, ma
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const { provider, geminiApiKey, ollamaUrl, model } = connectionSettings;
+    const isConfigured = (provider === 'gemini' && !!geminiApiKey) || (provider === 'ollama' && !!ollamaUrl && !!model);
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -117,7 +120,16 @@ export const Chatbot: React.FC<ChatbotProps> = ({ connectionSettings, people, ma
 
     return (
         <Card title="AI Assistant" icon={ICONS.VOICE_CHAT} className="h-full">
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full relative">
+                {!isConfigured && (
+                    <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex flex-col justify-center items-center text-center p-4 rounded-b-lg">
+                        <div className="text-accent mb-2 w-12 h-12">{ICONS.VOICE_CHAT}</div>
+                        <h4 className="font-bold mb-2">AI Assistant Not Configured</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Please configure your {provider === 'gemini' ? 'Gemini API Key' : 'Ollama URL and Model'} in the Settings page to enable the chatbot.
+                        </p>
+                    </div>
+                )}
                 <div className="flex-grow overflow-y-auto p-4 space-y-4">
                     {messages.map((msg, index) => {
                         // Don't render internal-state messages in the UI
@@ -157,9 +169,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({ connectionSettings, people, ma
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Ask about your family tree..."
                             className="flex-grow bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 focus:ring-accent focus:border-accent"
-                            disabled={isLoading || !connectionSettings.supabaseUrl}
+                            disabled={isLoading || !connectionSettings.supabaseUrl || !isConfigured}
                         />
-                        <button type="submit" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-md disabled:opacity-50" disabled={isLoading || !input.trim() || !connectionSettings.supabaseUrl}>
+                        <button type="submit" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-md disabled:opacity-50" disabled={isLoading || !input.trim() || !connectionSettings.supabaseUrl || !isConfigured}>
                             Send
                         </button>
                     </form>

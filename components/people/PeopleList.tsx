@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Person } from '../../types';
 import { ICONS } from '../../constants';
@@ -9,9 +8,10 @@ interface PeopleListProps {
   onDelete: (personId: string) => void;
   homePersonId: string;
   onViewPerson: (personId: string) => void;
+  onSetHomePerson: (personId: string) => void;
 }
 
-export const PeopleList: React.FC<PeopleListProps> = ({ people, onEdit, onDelete, homePersonId, onViewPerson }) => {
+export const PeopleList: React.FC<PeopleListProps> = ({ people, onEdit, onDelete, homePersonId, onViewPerson, onSetHomePerson }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredPeople = people.filter(p =>
@@ -59,6 +59,9 @@ export const PeopleList: React.FC<PeopleListProps> = ({ people, onEdit, onDelete
                   )}
                 </td>
                 <td className="px-6 py-4 flex items-center gap-2">
+                    {person.id !== homePersonId && (
+                        <button onClick={() => onSetHomePerson(person.id)} title="Set as Home Person" className="p-1 text-gray-500 dark:text-gray-400 hover:text-accent">{ICONS.HOME}</button>
+                    )}
                     <button onClick={() => onEdit(person)} title="Edit" className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-400">{ICONS.EDIT}</button>
                     <button onClick={() => onDelete(person.id)} title="Delete" className="p-1 text-gray-500 dark:text-gray-400 hover:text-red-500">{ICONS.DELETE}</button>
                 </td>

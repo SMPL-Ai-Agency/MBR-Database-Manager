@@ -1,9 +1,12 @@
-import { Person, Marriage, GenealogyData } from '../types';
+import { Person, Marriage, GenealogyData, AncestryRelation } from '../types';
 import { getClient } from './supabaseClient';
 
 const handleSupabaseError = (error: any, context: string) => {
     console.error(`Supabase error in ${context}:`, error);
-    throw new Error(`Failed to ${context}. Please check your connection and permissions.`);
+    const message = error.message || 'An unknown database error occurred.';
+    const details = error.details ? `Details: ${error.details}` : '';
+    const hint = error.hint ? `Hint: ${error.hint}` : '';
+    throw new Error(`Failed to ${context}. ${message} ${details} ${hint}`);
 };
 
 export const getPeople = async (): Promise<Person[]> => {
@@ -21,13 +24,7 @@ export const getMarriages = async (): Promise<Marriage[]> => {
 };
 
 export const getGenealogyData = async (homePersonId: string): Promise<GenealogyData> => {
-    // This function assumes the home_person is set correctly in the database,
-    // which triggers the view calculations.
     const supabase = getClient();
-    
-    // We don't need to pass the homePersonId to the views if they are defined
-    // to work off the `is_home_person = true` flag. We just need to ensure
-    // that flag is set before we call this.
     
     const [
         ancestryRes,
@@ -55,20 +52,37 @@ export const getGenealogyData = async (homePersonId: string): Promise<GenealogyD
     if (paternalEnslavedRes.error) handleSupabaseError(paternalEnslavedRes.error, 'fetch paternal enslaved');
     if (maternalEnslavedRes.error) handleSupabaseError(maternalEnslavedRes.error, 'fetch maternal enslaved');
 
+    const ancestry = (ancestryRes.data || []).map(p => ({ ...p, id: p.person_id })) as AncestryRelation[];
+
+    // The trace views in the schema are missing person_id. We augment the data here
+    // by matching it against the full ancestry list, which does have the ID.
+    const augmentTraceData = (traceData: any[], ancestryData: AncestryRelation[]) => {
+        return traceData.map(traceItem => {
+            const match = ancestryData.find(a => 
+                a.full_name === traceItem.full_name && 
+                a.relation === traceItem.relation &&
+                a.generation === traceItem.generation
+            );
+            return {
+                ...traceItem,
+                person_id: match ? match.person_id : null
+            };
+        }).filter(item => item.person_id); // Only return items where we could find a matching person
+    };
+    
     return {
-        ancestry: (ancestryRes.data || []).map(p => ({...p, id: p.person_id })),
-        descendants: (descendantsRes.data || []).map(p => ({...p, id: p.person_id })),
-        lateral: (lateralRes.data || []).map(p => ({...p, id: p.person_id })),
-        paternalHaplogroup: paternalHaploRes.data || [],
-        maternalHaplogroup: maternalHaploRes.data || [],
-        paternalEnslaved: paternalEnslavedRes.data || [],
-        maternalEnslaved: maternalEnslavedRes.data || [],
+        ancestry: ancestry,
+        descendants: descendantsRes.data || [],
+        lateral: lateralRes.data || [],
+        paternalHaplogroup: augmentTraceData(paternalHaploRes.data || [], ancestry),
+        maternalHaplogroup: augmentTraceData(maternalHaploRes.data || [], ancestry),
+        paternalEnslaved: augmentTraceData(paternalEnslavedRes.data || [], ancestry),
+        maternalEnslaved: augmentTraceData(maternalEnslavedRes.data || [], ancestry),
     };
 };
 
 export const addPerson = async (personData: Omit<Person, 'id' | 'created_at' | 'updated_at'>): Promise<Person> => {
     const supabase = getClient();
-    // Supabase will handle id, created_at, updated_at
     const { data, error } = await supabase.from('persons').insert([personData]).select();
     if (error) handleSupabaseError(error, 'add person');
     if (!data || data.length === 0) throw new Error('Failed to add person, no data returned.');
@@ -77,9 +91,6 @@ export const addPerson = async (personData: Omit<Person, 'id' | 'created_at' | '
 
 export const updatePerson = async (personId: string, personData: Partial<Omit<Person, 'id' | 'created_at' | 'updated_at'>>): Promise<Person> => {
     const supabase = getClient();
-    
-    // If setting a new home person, the database trigger `enforce_single_home_person` handles unsetting the old one.
-    
     const { data, error } = await supabase.from('persons').update(personData).eq('id', personId).select();
     if (error) handleSupabaseError(error, 'update person');
     if (!data || data.length === 0) throw new Error('Failed to update person, no data returned.');

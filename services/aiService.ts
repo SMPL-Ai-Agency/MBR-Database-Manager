@@ -213,9 +213,13 @@ const generateOllamaResponse = async (history: ChatMessage[], settings: Connecti
 
         return { type: 'text', content: "Received an empty response from Ollama." };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Ollama Communication Error:", error);
-        return { type: 'text', content: "Error communicating with Ollama. Please ensure the local server is running, the model is loaded, and the URL/model name in Settings are correct." };
+        let content = "Error communicating with Ollama. Please ensure the local server is running, the model is loaded, and the URL/model name in Settings are correct.";
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            content = "Connection to Ollama failed. This is likely a CORS issue.\n\nPlease check the browser console and ensure your Ollama server is configured to allow requests from this origin. You may need to restart the Ollama server with the OLLAMA_ORIGINS environment variable set.";
+        }
+        return { type: 'text', content };
     }
 };
 
@@ -228,5 +232,32 @@ export const generateChatResponse = async (
         return generateGeminiResponse(history, settings);
     } else { // Ollama
         return generateOllamaResponse(history, settings);
+    }
+};
+
+export const testOllamaConnection = async (settings: Pick<ConnectionSettings, 'ollamaUrl' | 'model'>): Promise<{ success: boolean; message: string }> => {
+    try {
+        const response = await fetch(settings.ollamaUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: settings.model,
+                messages: [{ role: 'user', content: 'Hi' }],
+                stream: false,
+            }),
+        });
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Ollama server responded with ${response.status}: ${errorBody}`);
+        }
+        await response.json(); // Check if response is valid json
+        return { success: true, message: 'Successfully connected to Ollama and model is available.' };
+    } catch (error: any) {
+        console.error("Ollama connection test failed:", error);
+        let errorMessage = `Failed to connect: ${error.message}`;
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            errorMessage = `Connection failed. This is likely a CORS issue. Please ensure your Ollama server is started with the correct origin permissions.\n\nFor example:\nOLLAMA_ORIGINS='*' ollama serve\n\n(Replace * with the app's origin for better security if possible)`;
+        }
+        return { success: false, message: errorMessage };
     }
 };
