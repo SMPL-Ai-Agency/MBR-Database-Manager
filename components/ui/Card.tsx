@@ -9,9 +9,10 @@ interface CardProps {
   defaultCollapsed?: boolean;
   actions?: React.ReactNode;
   className?: string;
+  count?: number;
 }
 
-export const Card: React.FC<CardProps> = ({ title, icon, children, collapsible = false, defaultCollapsed = false, actions, className }) => {
+export const Card: React.FC<CardProps> = ({ title, icon, children, collapsible = false, defaultCollapsed = false, actions, className, count }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   return (
@@ -25,6 +26,9 @@ export const Card: React.FC<CardProps> = ({ title, icon, children, collapsible =
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50">{title}</h3>
         </div>
         <div className="flex items-center gap-2">
+            {count !== undefined && count > 0 && (
+                <span className="text-sm font-bold text-accent">{count}</span>
+            )}
             {actions}
             {collapsible && (
                 <span className="text-gray-400 dark:text-gray-500">

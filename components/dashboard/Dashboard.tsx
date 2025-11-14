@@ -139,13 +139,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </dl>
                 </Card>
 
-                <Card title="Paternal Haplogroup" icon={ICONS.DNA} collapsible defaultCollapsed>
+                <Card title="Paternal Haplogroup" icon={ICONS.DNA} collapsible defaultCollapsed count={paternalHaplogroup.length}>
                    <ul className="space-y-1">
                         {paternalHaplogroup.map((p, i) => <li key={i}><button onClick={() => onViewPerson(p.person_id)} className="text-sm p-1 rounded w-full text-left hover:bg-gray-100 dark:hover:bg-gray-800">{p.full_name} ({p.relation}) {p.paternal_haplogroup && <span className="font-bold text-accent ml-2">{p.paternal_haplogroup}</span>}</button></li>)}
                     </ul>
                 </Card>
 
-                <Card title="Maternal Haplogroup" icon={ICONS.DNA} collapsible defaultCollapsed>
+                <Card title="Maternal Haplogroup" icon={ICONS.DNA} collapsible defaultCollapsed count={maternalHaplogroup.length}>
                    <ul className="space-y-1">
                         {maternalHaplogroup.map((p, i) => <li key={i}><button onClick={() => onViewPerson(p.person_id)} className="text-sm p-1 rounded w-full text-left hover:bg-gray-100 dark:hover:bg-gray-800">{p.full_name} ({p.relation}) {p.maternal_haplogroup && <span className="font-bold text-accent ml-2">{p.maternal_haplogroup}</span>}</button></li>)}
                     </ul>
@@ -156,6 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     icon={ICONS.RINGS} 
                     collapsible 
                     defaultCollapsed
+                    count={homePersonMarriages.length}
                     actions={
                         <button 
                             onClick={onAddMarriage} 
@@ -201,7 +202,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 
                 <RelationList title="Aunts | Uncles | Cousins" relations={lateral} onPersonClick={onViewPerson} collapsible defaultCollapsed />
 
-                <Card title="Paternal Enslaved Ancestors" icon={ICONS.INFO} collapsible defaultCollapsed>
+                <Card title="Paternal Enslaved Ancestors" icon={ICONS.INFO} collapsible defaultCollapsed count={paternalEnslaved.length}>
                     {paternalEnslaved.length > 0 ? (
                         <ul className="space-y-1">
                            {paternalEnslaved.map((p, i) => <li key={i}><button onClick={() => onViewPerson(p.person_id)} className="text-sm text-amber-400 p-1 rounded w-full text-left hover:bg-gray-100 dark:hover:bg-gray-800">{p.full_name} ({p.relation})</button></li>)}
@@ -209,7 +210,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     ) : <p className="text-sm text-gray-500 dark:text-gray-400">No paternal enslaved ancestors found.</p>}
                 </Card>
 
-                <Card title="Maternal Enslaved Ancestors" icon={ICONS.INFO} collapsible defaultCollapsed>
+                <Card title="Maternal Enslaved Ancestors" icon={ICONS.INFO} collapsible defaultCollapsed count={maternalEnslaved.length}>
                     {maternalEnslaved.length > 0 ? (
                        <ul className="space-y-1">
                            {maternalEnslaved.map((p, i) => <li key={i}><button onClick={() => onViewPerson(p.person_id)} className="text-sm text-amber-400 p-1 rounded w-full text-left hover:bg-gray-100 dark:hover:bg-gray-800">{p.full_name} ({p.relation})</button></li>)}

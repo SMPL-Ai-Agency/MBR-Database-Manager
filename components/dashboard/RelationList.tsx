@@ -22,7 +22,13 @@ interface RelationListProps {
 
 export const RelationList: React.FC<RelationListProps> = ({ title, relations, onPersonClick, collapsible = false, defaultCollapsed = false }) => {
     return (
-        <Card title={title} icon={ICONS.USERS} collapsible={collapsible} defaultCollapsed={defaultCollapsed}>
+        <Card 
+            title={title} 
+            icon={ICONS.USERS} 
+            collapsible={collapsible} 
+            defaultCollapsed={defaultCollapsed}
+            count={relations.length}
+        >
             {relations.length > 0 ? (
                 <ul className="space-y-2 max-h-96 overflow-y-auto pr-2">
                     {relations.map((p, i) => (

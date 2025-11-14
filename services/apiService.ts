@@ -52,7 +52,7 @@ export const getGenealogyData = async (homePersonId: string): Promise<GenealogyD
     if (paternalEnslavedRes.error) handleSupabaseError(paternalEnslavedRes.error, 'fetch paternal enslaved');
     if (maternalEnslavedRes.error) handleSupabaseError(maternalEnslavedRes.error, 'fetch maternal enslaved');
 
-    const ancestry = (ancestryRes.data || []).map(p => ({ ...p, id: p.person_id })) as AncestryRelation[];
+    const ancestry: AncestryRelation[] = ancestryRes.data || [];
 
     // The trace views in the schema are missing person_id. We augment the data here
     // by matching it against the full ancestry list, which does have the ID.
