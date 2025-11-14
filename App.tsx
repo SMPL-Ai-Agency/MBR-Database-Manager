@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Person, GenealogyData, Marriage, ConnectionSettings } from './types';
+import { Person, GenealogyData, Marriage, ConnectionSettings, AiConfig } from './types';
 import * as api from './services/apiService';
 import * as mockApi from './services/mockApiService';
 import { initializeClient } from './services/supabaseClient';
@@ -44,16 +44,47 @@ const App: React.FC = () => {
 
     const [connectionSettings, setConnectionSettings] = useState<ConnectionSettings>(() => {
         const savedSettings = localStorage.getItem('connectionSettings');
-        const defaultSettings: ConnectionSettings = {
-            supabaseUrl: '',
-            supabaseAnonKey: '',
+        
+        const defaultAiConfig: AiConfig = {
             provider: 'ollama',
             geminiApiKey: '',
-            ollamaUrl: 'http://localhost:11434/api/chat',
+            ollamaUrl: 'http://localhost:11434',
+            ollamaApiKey: '',
             model: 'gemma:2b',
             systemPrompt: 'You are a helpful genealogy assistant. You can query the database for people and marriages. You can also add or update people.'
         };
-        return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+
+        const defaultSettings: ConnectionSettings = {
+            supabaseUrl: '',
+            supabaseAnonKey: '',
+            aiAssistantConfig: { ...defaultAiConfig },
+            datasetManagerAiConfig: { 
+                ...defaultAiConfig, 
+                systemPrompt: 'You are an AI that helps manage a genealogy dataset. Your primary role is to analyze, clean, and enrich the data for AI model training.' 
+            },
+        };
+
+        if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            // Quick migration for old settings structure
+            if (parsed.provider) {
+                return {
+                    ...defaultSettings,
+                    supabaseUrl: parsed.supabaseUrl,
+                    supabaseAnonKey: parsed.supabaseAnonKey,
+                    aiAssistantConfig: {
+                        provider: parsed.provider,
+                        geminiApiKey: parsed.geminiApiKey,
+                        ollamaUrl: parsed.ollamaUrl,
+                        ollamaApiKey: parsed.ollamaApiKey,
+                        model: parsed.model,
+                        systemPrompt: parsed.systemPrompt,
+                    }
+                };
+            }
+            return { ...defaultSettings, ...parsed };
+        }
+        return defaultSettings;
     });
     
     const apiService = useMemo(() => isDemoMode ? mockApi : api, [isDemoMode]);
@@ -283,6 +314,7 @@ const App: React.FC = () => {
                             onEditPerson={handleOpenPersonForm}
                             connectionSettings={connectionSettings}
                             refreshData={() => refreshData(true, isDemoMode)}
+                            isDemoMode={isDemoMode}
                         />;
             case 'people':
                  if (!homePerson) return null;

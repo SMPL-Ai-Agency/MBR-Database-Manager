@@ -119,12 +119,44 @@ export type ChatMessage = {
   toolName?: string;
 };
 
-export type ConnectionSettings = {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
+export type AiConfig = {
   provider: 'gemini' | 'ollama';
   geminiApiKey: string;
   ollamaUrl: string;
+  ollamaApiKey: string;
   model: string;
   systemPrompt: string;
+};
+
+export type ConnectionSettings = {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  aiAssistantConfig: AiConfig;
+  datasetManagerAiConfig: AiConfig;
+};
+
+export type AiFeedback = {
+  id?: string;
+  created_at?: string;
+  user_prompt: string;
+  model_response: string;
+  rating: 1 | -1;
+  feedback_text?: string;
+  model_used?: string;
+  connection_settings?: AiConfig; // Store the specific config used
+};
+
+export type OllamaModel = {
+    name: string;
+    model: string;
+    modified_at: string;
+    size: number;
+    digest: string;
+    details: {
+        format: string;
+        family: string;
+        families: string[] | null;
+        parameter_size: string;
+        quantization_level: string;
+    };
 };

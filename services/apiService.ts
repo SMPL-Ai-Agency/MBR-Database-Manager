@@ -1,4 +1,4 @@
-import { Person, Marriage, GenealogyData, AncestryRelation } from '../types';
+import { Person, Marriage, GenealogyData, AncestryRelation, AiFeedback } from '../types';
 import { getClient } from './supabaseClient';
 
 const handleSupabaseError = (error: any, context: string) => {
@@ -116,5 +116,13 @@ export const updateMarriage = async (marriageId: string, marriageData: Partial<O
     const { data, error } = await supabase.from('marriages').update(marriageData).eq('id', marriageId).select();
     if (error) handleSupabaseError(error, 'update marriage');
     if (!data || data.length === 0) throw new Error('Failed to update marriage, no data returned.');
+    return data[0];
+};
+
+export const addAiFeedback = async (feedbackData: Omit<AiFeedback, 'id' | 'created_at'>): Promise<AiFeedback> => {
+    const supabase = getClient();
+    const { data, error } = await supabase.from('ai_feedback').insert([feedbackData]).select();
+    if (error) handleSupabaseError(error, 'add AI feedback');
+    if (!data || data.length === 0) throw new Error('Failed to add AI feedback, no data returned.');
     return data[0];
 };

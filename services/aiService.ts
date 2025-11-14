@@ -1,5 +1,5 @@
 import { GoogleGenAI, FunctionDeclaration, Type, Part, FunctionResponsePart } from '@google/genai';
-import { ConnectionSettings, ChatMessage, Person, ToolCall } from '../types';
+import { AiConfig, ChatMessage, Person, ToolCall, OllamaModel } from '../types';
 
 // --- Tool Definitions (shared between Gemini and Ollama) ---
 const tools: FunctionDeclaration[] = [
@@ -54,18 +54,59 @@ const tools: FunctionDeclaration[] = [
     }
 ];
 
+// --- Centralized Ollama Helpers ---
+const getOllamaEndpoint = (baseUrl: string, path: '/api/chat' | '/api/tags'): string => {
+    if (!baseUrl || !baseUrl.trim()) {
+        throw new Error("Ollama URL is not configured.");
+    }
+    const cleanedBase = baseUrl.trim().replace(/\/+$/, '');
+    return `${cleanedBase}${path}`;
+};
+
+const getOllamaHeaders = (config: Pick<AiConfig, 'ollamaApiKey'>): HeadersInit => {
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (config.ollamaApiKey) {
+        headers['Authorization'] = `Bearer ${config.ollamaApiKey}`;
+    }
+    return headers;
+};
+
+const handleOllamaError = async (error: any, urlAttempted: string): Promise<string> => {
+    console.error(`Ollama communication error for URL [${urlAttempted}]:`, error);
+
+    if (error.response) { // Check if it's a Response object from a failed fetch
+        const response = error.response as Response;
+        const errorBody = await response.text().catch(() => 'Could not read error body.');
+
+        if (response.status === 401 || response.status === 403) {
+            return `Authentication failed (Status: ${response.status}). Please check your Ollama API Key in Settings.`;
+        }
+        if (response.status === 404) {
+            return `Ollama server responded with 404 Not Found.\n\nThe application tried to access the following URL, which appears to be incorrect:\n${urlAttempted}\n\nPlease check your Ollama URL in Settings. It should be the base address (e.g., http://localhost:11434), not a full API path.`;
+        }
+        return `Ollama server responded with an error (Status: ${response.status}):\n${errorBody}`;
+    }
+    
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return `Connection to Ollama failed. This is almost always a Cross-Origin Resource Sharing (CORS) issue.\n\nYour browser is blocking the request for security reasons. To fix this, you must configure your Ollama server to allow requests from this application's origin.\n\n**Solution:**\nRestart your Ollama server with the OLLAMA_ORIGINS environment variable set. For example:\n\nOLLAMA_ORIGINS='*' ollama serve\n\n(Replace * with the specific origin for better security if possible).`;
+    }
+
+    // Generic fallback for other types of errors
+    return `An unexpected error occurred while communicating with Ollama: ${error.message}`;
+};
+
+
 // --- Main AI Service ---
 
 type AiResponse = { type: 'text', content: string } | { type: 'tool_call', calls: ToolCall[] };
 
-const generateGeminiResponse = async (history: ChatMessage[], settings: ConnectionSettings): Promise<AiResponse> => {
-    if (!settings.geminiApiKey) {
+const generateGeminiResponse = async (history: ChatMessage[], config: AiConfig): Promise<AiResponse> => {
+    if (!config.geminiApiKey) {
         return { type: 'text', content: 'Gemini API Key is not configured. Please add it in Settings.' };
     }
-    const ai = new GoogleGenAI({ apiKey: settings.geminiApiKey });
+    const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
     const model = 'gemini-2.5-flash';
 
-    // Build the history in the format Gemini expects
     const contents: Part[] = [];
     for (const msg of history) {
         if (msg.role === 'user') {
@@ -89,7 +130,6 @@ const generateGeminiResponse = async (history: ChatMessage[], settings: Connecti
         }
     }
     
-    // Group consecutive function responses
     const groupedContents = contents.reduce((acc, part, index) => {
         if (part.role === 'function' && index > 0 && acc.length > 0 && acc[acc.length - 1].role === 'function') {
             (acc[acc.length - 1].parts as FunctionResponsePart[]).push(...(part.parts as FunctionResponsePart[]));
@@ -105,14 +145,14 @@ const generateGeminiResponse = async (history: ChatMessage[], settings: Connecti
             model,
             contents: groupedContents,
             config: {
-                systemInstruction: settings.systemPrompt,
+                systemInstruction: config.systemPrompt,
                 tools: [{ functionDeclarations: tools }],
             },
         });
 
         if (response.functionCalls && response.functionCalls.length > 0) {
              const toolCalls: ToolCall[] = response.functionCalls.map((fc: any) => ({
-                id: fc.name + '-' + Date.now() + Math.random(), // Gemini API doesn't always provide an ID, so we create one.
+                id: fc.name + '-' + Date.now() + Math.random(),
                 name: fc.name,
                 args: fc.args,
             }));
@@ -129,59 +169,49 @@ const generateGeminiResponse = async (history: ChatMessage[], settings: Connecti
     }
 };
 
-const generateOllamaResponse = async (history: ChatMessage[], settings: ConnectionSettings): Promise<AiResponse> => {
-    const ollamaHistory = history.map(msg => {
-        switch (msg.role) {
-            case 'user':
-                return { role: 'user', content: msg.content };
-            case 'model':
-                return { 
-                    role: 'assistant', 
-                    content: msg.content || null, // Ensure content is null if empty for some models
-                    tool_calls: msg.toolCalls?.map(tc => ({
-                        id: tc.id,
-                        type: 'function',
-                        function: { name: tc.name, arguments: tc.args }
-                    }))
-                };
-            case 'tool':
-                return {
-                    role: 'tool',
-                    content: msg.content,
-                    tool_call_id: msg.toolCallId,
-                };
-        }
-    }).filter(Boolean); // Filter out any undefined results, just in case
-
-    const ollamaTools = tools.map(tool => ({
-        type: 'function',
-        function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters
-        }
-    }));
-
+const generateOllamaResponse = async (history: ChatMessage[], config: AiConfig): Promise<AiResponse> => {
+    const chatUrl = getOllamaEndpoint(config.ollamaUrl, '/api/chat');
     try {
-        const response = await fetch(settings.ollamaUrl, {
+        const ollamaHistory = history.map(msg => {
+            switch (msg.role) {
+                case 'user':
+                    return { role: 'user', content: msg.content };
+                case 'model':
+                    return { 
+                        role: 'assistant', 
+                        content: msg.content || null,
+                        tool_calls: msg.toolCalls?.map(tc => ({
+                            id: tc.id,
+                            type: 'function',
+                            function: { name: tc.name, arguments: tc.args }
+                        }))
+                    };
+                case 'tool':
+                    return {
+                        role: 'tool',
+                        content: msg.content,
+                        tool_call_id: msg.toolCallId,
+                    };
+            }
+        }).filter(Boolean);
+
+        const ollamaTools = tools.map(tool => ({
+            type: 'function',
+            function: { name: tool.name, description: tool.description, parameters: tool.parameters }
+        }));
+
+        const response = await fetch(chatUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getOllamaHeaders(config),
             body: JSON.stringify({
-                model: settings.model,
-                messages: [
-                    { role: 'system', content: settings.systemPrompt },
-                    ...ollamaHistory
-                ],
+                model: config.model,
+                messages: [{ role: 'system', content: config.systemPrompt }, ...ollamaHistory],
                 tools: ollamaTools,
                 stream: false
             }),
         });
         
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("Ollama API Error Response:", errorBody);
-            throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-        }
+        if (!response.ok) throw { response };
         
         const result = await response.json();
 
@@ -189,20 +219,13 @@ const generateOllamaResponse = async (history: ChatMessage[], settings: Connecti
             const toolCalls: ToolCall[] = result.message.tool_calls.map((tc: any) => {
                 let args = {};
                 try {
-                    // Ollama often returns arguments as a string, so we need to parse it.
                     if (typeof tc.function.arguments === 'string') {
                         args = JSON.parse(tc.function.arguments);
                     } else {
                         args = tc.function.arguments;
                     }
-                } catch(e) {
-                    console.error("Failed to parse Ollama tool arguments:", tc.function.arguments, e);
-                }
-                return {
-                    id: tc.id || `${tc.function.name}-${Date.now()}`,
-                    name: tc.function.name,
-                    args: args,
-                };
+                } catch(e) { console.error("Failed to parse Ollama tool arguments:", tc.function.arguments, e); }
+                return { id: tc.id || `${tc.function.name}-${Date.now()}`, name: tc.function.name, args: args };
             });
             return { type: 'tool_call', calls: toolCalls };
         }
@@ -212,52 +235,57 @@ const generateOllamaResponse = async (history: ChatMessage[], settings: Connecti
         }
 
         return { type: 'text', content: "Received an empty response from Ollama." };
-
     } catch (error: any) {
-        console.error("Ollama Communication Error:", error);
-        let content = "Error communicating with Ollama. Please ensure the local server is running, the model is loaded, and the URL/model name in Settings are correct.";
-        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            content = "Connection to Ollama failed. This is likely a CORS issue.\n\nPlease check the browser console and ensure your Ollama server is configured to allow requests from this origin. You may need to restart the Ollama server with the OLLAMA_ORIGINS environment variable set.";
-        }
-        return { type: 'text', content };
+        const friendlyMessage = await handleOllamaError(error, chatUrl);
+        return { type: 'text', content: friendlyMessage };
     }
 };
 
 export const generateChatResponse = async (
     history: ChatMessage[],
-    settings: ConnectionSettings,
-    allPeople: Person[], // For context
+    config: AiConfig,
+    allPeople: Person[],
 ): Promise<AiResponse> => {
-    if (settings.provider === 'gemini') {
-        return generateGeminiResponse(history, settings);
-    } else { // Ollama
-        return generateOllamaResponse(history, settings);
+    if (config.provider === 'gemini') {
+        return generateGeminiResponse(history, config);
+    } else {
+        return generateOllamaResponse(history, config);
     }
 };
 
-export const testOllamaConnection = async (settings: Pick<ConnectionSettings, 'ollamaUrl' | 'model'>): Promise<{ success: boolean; message: string }> => {
+export const testOllamaConnection = async (config: Pick<AiConfig, 'ollamaUrl' | 'model' | 'ollamaApiKey'>): Promise<{ success: boolean; message: string }> => {
+    const testUrl = getOllamaEndpoint(config.ollamaUrl, '/api/chat');
     try {
-        const response = await fetch(settings.ollamaUrl, {
+        const response = await fetch(testUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getOllamaHeaders(config),
             body: JSON.stringify({
-                model: settings.model,
+                model: config.model,
                 messages: [{ role: 'user', content: 'Hi' }],
                 stream: false,
             }),
         });
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Ollama server responded with ${response.status}: ${errorBody}`);
-        }
-        await response.json(); // Check if response is valid json
+        if (!response.ok) throw { response };
+        await response.json();
         return { success: true, message: 'Successfully connected to Ollama and model is available.' };
     } catch (error: any) {
-        console.error("Ollama connection test failed:", error);
-        let errorMessage = `Failed to connect: ${error.message}`;
-        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            errorMessage = `Connection failed. This is likely a CORS issue. Please ensure your Ollama server is started with the correct origin permissions.\n\nFor example:\nOLLAMA_ORIGINS='*' ollama serve\n\n(Replace * with the app's origin for better security if possible)`;
+        const friendlyMessage = await handleOllamaError(error, testUrl);
+        return { success: false, message: friendlyMessage };
+    }
+};
+
+export const getOllamaModels = async (ollamaUrl: string, ollamaApiKey?: string): Promise<OllamaModel[]> => {
+    const tagsUrl = getOllamaEndpoint(ollamaUrl, '/api/tags');
+    try {
+        const response = await fetch(tagsUrl, { headers: getOllamaHeaders({ ollamaApiKey: ollamaApiKey || '' }) });
+        if (!response.ok) throw { response };
+        const data = await response.json();
+        if (!data.models || !Array.isArray(data.models)) {
+            throw new Error("Invalid response format from Ollama /api/tags endpoint.");
         }
-        return { success: false, message: errorMessage };
+        return data.models;
+    } catch (error: any) {
+        const friendlyMessage = await handleOllamaError(error, tagsUrl);
+        throw new Error(friendlyMessage);
     }
 };

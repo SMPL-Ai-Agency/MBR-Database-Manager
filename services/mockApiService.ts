@@ -1,4 +1,4 @@
-import { Person, Marriage, GenealogyData, AncestryRelation, DescendantRelation, HaplogroupTrace, EnslavedTrace } from '../types';
+import { Person, Marriage, GenealogyData, AncestryRelation, DescendantRelation, HaplogroupTrace, EnslavedTrace, AiFeedback } from '../types';
 import { v4 as uuidv4 } from 'uuid'; // Simple uuid for demo
 
 // --- Mock Data Store ---
@@ -228,4 +228,15 @@ export const updateMarriage = async (marriageId: string, marriageData: Partial<O
     if (!marriage) throw new Error("Marriage not found");
     Object.assign(marriage, marriageData, { updated_at: new Date().toISOString() });
     return Promise.resolve(marriage);
+};
+
+export const addAiFeedback = async (feedbackData: Omit<AiFeedback, 'id' | 'created_at'>): Promise<AiFeedback> => {
+    console.log("--- DEMO MODE: AI FEEDBACK SUBMITTED ---");
+    console.log(feedbackData);
+    const newFeedback: AiFeedback = {
+        id: uuidv4(),
+        created_at: new Date().toISOString(),
+        ...feedbackData,
+    };
+    return Promise.resolve(newFeedback);
 };

@@ -18,6 +18,7 @@ interface DashboardProps {
   onEditPerson: (person: Person) => void;
   connectionSettings: ConnectionSettings;
   refreshData: () => Promise<void>;
+  isDemoMode: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -30,7 +31,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onEditMarriage, 
     onEditPerson,
     connectionSettings,
-    refreshData
+    refreshData,
+    isDemoMode
 }) => {
   if (!data) {
     return (
@@ -87,24 +89,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Added Math.max to prevent negative counts if data is empty */}
             <StatCard title="Ancestors" value={Math.max(0, ancestry.length - 1)} icon={ICONS.USERS} />
             <StatCard title="Descendants" value={descendants.length} icon={ICONS.USERS} />
             <StatCard title="Total People" value={people.length} icon={ICONS.USERS} />
             <StatCard title="DNA Matches" value={people.filter(p => p.dna_match).length} icon={ICONS.DNA} />
         </div>
 
-        {/* Changed grid to have two equal columns (lg:grid-cols-2) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
+            <div className="lg:col-span-1">
                 <Chatbot 
-                    connectionSettings={connectionSettings}
+                    title="AI Assistant"
+                    aiConfig={connectionSettings.aiAssistantConfig}
                     people={people}
                     marriages={marriages}
                     refreshData={refreshData}
+                    isDemoMode={isDemoMode}
                 />
             </div>
-            <div className="space-y-6">
+            <div className="lg:col-span-1 space-y-6">
                 <Card 
                     title="Home Person Details" 
                     icon={ICONS.USER}
