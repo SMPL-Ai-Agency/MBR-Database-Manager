@@ -104,7 +104,6 @@ export type GenealogyData = {
   maternalEnslaved: EnslavedTrace[];
 };
 
-// Fix: Add missing AI-related types
 export type ToolCall = {
   id: string;
   name: string;
@@ -120,8 +119,11 @@ export type ChatMessage = {
   toolName?: string;
 };
 
-export type AiSettings = {
+export type ConnectionSettings = {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
   provider: 'gemini' | 'ollama';
+  geminiApiKey: string;
   ollamaUrl: string;
   model: string;
   systemPrompt: string;

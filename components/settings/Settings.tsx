@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { Card } from '../ui/Card';
 import { ICONS } from '../../constants';
-import { AiSettings } from '../../types';
+import { ConnectionSettings } from '../../types';
+import { Button } from '../ui/Button';
+import { Spinner } from '../ui/Spinner';
 
 const useTheme = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -28,29 +31,96 @@ const useTheme = () => {
 };
 
 interface SettingsProps {
-    aiSettings: AiSettings;
-    onAiSettingsChange: (settings: AiSettings) => void;
+    settings: ConnectionSettings;
+    onSettingsChange: (settings: ConnectionSettings) => void;
 }
 
-
-export const Settings: React.FC<SettingsProps> = ({ aiSettings, onAiSettingsChange }) => {
+export const Settings: React.FC<SettingsProps> = ({ settings, onSettingsChange }) => {
   const [theme, setTheme] = useTheme();
+  const [localSettings, setLocalSettings] = useState(settings);
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [testMessage, setTestMessage] = useState('');
+
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
   
-  const handleAiSettingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    onAiSettingsChange({ ...aiSettings, [name]: value });
+    setLocalSettings(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = () => {
+    onSettingsChange(localSettings);
+    alert("Settings saved!");
+  };
+
+  const handleTestConnection = async () => {
+    setTestStatus('testing');
+    setTestMessage('');
+    try {
+        const testClient = createClient(localSettings.supabaseUrl, localSettings.supabaseAnonKey);
+        // A simple query to test the connection and key validity.
+        const { error } = await testClient.from('persons').select('id').limit(1);
+        if (error) throw error;
+        setTestStatus('success');
+        setTestMessage('Connection successful!');
+    } catch (error: any) {
+        setTestStatus('error');
+        setTestMessage(`Connection failed: ${error.message}`);
+    }
   };
   
   const baseInputClasses = "bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-50 text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5";
 
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-        <h2 className="text-3xl font-bold">Settings</h2>
+        <div className="flex justify-between items-center">
+            <h2 className="text-3xl font-bold">Settings</h2>
+            <Button onClick={handleSave}>Save Settings</Button>
+        </div>
+
+        <Card title="Supabase Connection" icon={ICONS.DATABASE}>
+            <div className="space-y-4 p-2">
+                 <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">Supabase URL</label>
+                     <input
+                        type="text"
+                        name="supabaseUrl"
+                        value={localSettings.supabaseUrl}
+                        onChange={handleChange}
+                        className={baseInputClasses}
+                        placeholder="https://your-project-ref.supabase.co"
+                    />
+                </div>
+                <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">Supabase Anon Key</label>
+                     <input
+                        type="password"
+                        name="supabaseAnonKey"
+                        value={localSettings.supabaseAnonKey}
+                        onChange={handleChange}
+                        className={baseInputClasses}
+                        placeholder="your-anon-key"
+                    />
+                </div>
+                <div className="flex items-center gap-4 pt-2">
+                    <Button variant="secondary" onClick={handleTestConnection} disabled={testStatus === 'testing'}>
+                        {testStatus === 'testing' ? <div className="flex items-center gap-2"><Spinner /> Testing...</div> : 'Test Connection'}
+                    </Button>
+                    {testStatus !== 'idle' && testStatus !== 'testing' && (
+                        <p className={`text-sm ${testStatus === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+                            {testMessage}
+                        </p>
+                    )}
+                </div>
+            </div>
+        </Card>
+
         <Card title="Appearance" icon={ICONS.SETTINGS}>
             <div className="flex items-center justify-between p-2">
                 <div className="flex flex-col">
@@ -81,8 +151,8 @@ export const Settings: React.FC<SettingsProps> = ({ aiSettings, onAiSettingsChan
                     <label className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">Model Provider</label>
                     <select
                         name="provider"
-                        value={aiSettings.provider}
-                        onChange={handleAiSettingChange}
+                        value={localSettings.provider}
+                        onChange={handleChange}
                         className={baseInputClasses}
                     >
                         <option value="ollama">Ollama (Local)</option>
@@ -90,15 +160,15 @@ export const Settings: React.FC<SettingsProps> = ({ aiSettings, onAiSettingsChan
                     </select>
                 </div>
                 
-                {aiSettings.provider === 'ollama' && (
+                {localSettings.provider === 'ollama' && (
                     <>
                         <div>
                             <label className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">Ollama URL</label>
                              <input
                                 type="text"
                                 name="ollamaUrl"
-                                value={aiSettings.ollamaUrl}
-                                onChange={handleAiSettingChange}
+                                value={localSettings.ollamaUrl}
+                                onChange={handleChange}
                                 className={baseInputClasses}
                                 placeholder="http://localhost:11434/api/chat"
                             />
@@ -108,21 +178,35 @@ export const Settings: React.FC<SettingsProps> = ({ aiSettings, onAiSettingsChan
                              <input
                                 type="text"
                                 name="model"
-                                value={aiSettings.model}
-                                onChange={handleAiSettingChange}
+                                value={localSettings.model}
+                                onChange={handleChange}
                                 className={baseInputClasses}
                                 placeholder="e.g., gemma:2b, llama3, gpt-oss:20b"
                             />
                         </div>
                     </>
                 )}
+
+                {localSettings.provider === 'gemini' && (
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">Google AI (Gemini) API Key</label>
+                         <input
+                            type="password"
+                            name="geminiApiKey"
+                            value={localSettings.geminiApiKey}
+                            onChange={handleChange}
+                            className={baseInputClasses}
+                            placeholder="Enter your Gemini API Key"
+                        />
+                    </div>
+                )}
                 
                  <div>
                     <label className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-300">System Prompt</label>
                      <textarea
                         name="systemPrompt"
-                        value={aiSettings.systemPrompt}
-                        onChange={handleAiSettingChange}
+                        value={localSettings.systemPrompt}
+                        onChange={handleChange}
                         rows={5}
                         className={baseInputClasses}
                         placeholder="Define the chatbot's role and personality."

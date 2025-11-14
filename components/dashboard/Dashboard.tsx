@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Person, GenealogyData, Marriage, AiSettings } from '../../types';
+import { Person, GenealogyData, Marriage, ConnectionSettings } from '../../types';
 import { Card } from '../ui/Card';
 import { ICONS } from '../../constants';
 import { StatCard } from './StatCard';
@@ -16,7 +16,7 @@ interface DashboardProps {
   onAddMarriage: () => void;
   onEditMarriage: (marriage: Marriage) => void;
   onEditPerson: (person: Person) => void;
-  aiSettings: AiSettings;
+  connectionSettings: ConnectionSettings;
   refreshData: () => Promise<void>;
 }
 
@@ -29,7 +29,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onAddMarriage, 
     onEditMarriage, 
     onEditPerson,
-    aiSettings,
+    connectionSettings,
     refreshData
 }) => {
   if (!data) {
@@ -199,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="lg:col-span-1">
                 <Chatbot 
-                    aiSettings={aiSettings}
+                    connectionSettings={connectionSettings}
                     people={people}
                     marriages={marriages}
                     refreshData={refreshData}

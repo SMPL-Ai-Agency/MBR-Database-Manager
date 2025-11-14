@@ -8,12 +8,16 @@ interface HeaderProps {
   currentView: string;
   onSetView: (view: View) => void;
   onAddPerson: () => void;
+  isAddPersonDisabled?: boolean;
+  isDemoMode?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentView,
   onSetView,
   onAddPerson,
+  isAddPersonDisabled = false,
+  isDemoMode = false,
 }) => {
   const NavButton = ({ view, label, icon, responsive = false, iconOnly = false }: { view: View, label: string, icon: React.ReactNode, responsive?: boolean, iconOnly?: boolean }) => (
     <button
@@ -42,12 +46,18 @@ export const Header: React.FC<HeaderProps> = ({
             <nav className="hidden md:flex items-center gap-2">
               <NavButton view="dashboard" label="Dashboard" icon={ICONS.HOME} />
             </nav>
+             {isDemoMode && (
+                <span className="text-xs font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-1 rounded-full">
+                    Demo Mode
+                </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onAddPerson}
-              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-md transition-colors"
+              disabled={isAddPersonDisabled}
+              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               <span className="hidden sm:inline">Add Person</span>
               <span className="sm:hidden">{ICONS.PLUS}</span>

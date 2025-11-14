@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AiSettings, ChatMessage, Person, Marriage, ToolCall } from '../../types';
+import { ConnectionSettings, ChatMessage, Person, Marriage, ToolCall } from '../../types';
 import * as aiService from '../../services/aiService';
 import * as apiService from '../../services/apiService';
 import { Card } from '../ui/Card';
@@ -7,13 +7,13 @@ import { ICONS } from '../../constants';
 import { Spinner } from '../ui/Spinner';
 
 interface ChatbotProps {
-    aiSettings: AiSettings;
+    connectionSettings: ConnectionSettings;
     people: Person[];
     marriages: Marriage[];
     refreshData: () => Promise<void>;
 }
 
-export const Chatbot: React.FC<ChatbotProps> = ({ aiSettings, people, marriages, refreshData }) => {
+export const Chatbot: React.FC<ChatbotProps> = ({ connectionSettings, people, marriages, refreshData }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -32,10 +32,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({ aiSettings, people, marriages,
         try {
             switch (name) {
                 case 'get_people':
-                    result = `Found ${people.length} people: ` + people.map(p => `${p.first_name} ${p.last_name} (ID: ${p.id})`).join(', ');
+                    const currentPeople = await apiService.getPeople();
+                    result = `Found ${currentPeople.length} people: ` + currentPeople.map(p => `${p.first_name} ${p.last_name} (ID: ${p.id})`).join(', ');
                     break;
                 case 'get_marriages':
-                     result = `Found ${marriages.length} marriages.`;
+                     const currentMarriages = await apiService.getMarriages();
+                     result = `Found ${currentMarriages.length} marriages.`;
                     break;
                 case 'add_person':
                     const personDefaults = { enslaved: false, dna_match: false };
@@ -73,7 +75,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({ aiSettings, people, marriages,
         setInput('');
         setIsLoading(true);
 
-        const response = await aiService.generateChatResponse(newHistory, aiSettings, people);
+        const response = await aiService.generateChatResponse(newHistory, connectionSettings, people);
         
         if (response.type === 'text') {
             setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: response.content }]);
@@ -100,7 +102,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({ aiSettings, people, marriages,
             const historyForNextTurn = [...newHistory, modelRequestMessage, ...toolResultMessages];
             setMessages(historyForNextTurn);
             
-            const finalResponse = await aiService.generateChatResponse(historyForNextTurn, aiSettings, people);
+            const finalResponse = await aiService.generateChatResponse(historyForNextTurn, connectionSettings, people);
             if (finalResponse.type === 'text') {
                 const finalModelMessage = { id: (Date.now() + 1).toString(), role: 'model' as const, content: finalResponse.content };
                 setMessages(prev => [...prev, finalModelMessage]);
@@ -155,9 +157,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({ aiSettings, people, marriages,
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Ask about your family tree..."
                             className="flex-grow bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-2 focus:ring-accent focus:border-accent"
-                            disabled={isLoading}
+                            disabled={isLoading || !connectionSettings.supabaseUrl}
                         />
-                        <button type="submit" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-md disabled:opacity-50" disabled={isLoading || !input.trim()}>
+                        <button type="submit" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-md disabled:opacity-50" disabled={isLoading || !input.trim() || !connectionSettings.supabaseUrl}>
                             Send
                         </button>
                     </form>

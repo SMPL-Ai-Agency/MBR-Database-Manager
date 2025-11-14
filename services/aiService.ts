@@ -1,5 +1,5 @@
 import { GoogleGenAI, FunctionDeclaration, Type, Part, FunctionResponsePart } from '@google/genai';
-import { AiSettings, ChatMessage, Person, ToolCall } from '../types';
+import { ConnectionSettings, ChatMessage, Person, ToolCall } from '../types';
 
 // --- Tool Definitions (shared between Gemini and Ollama) ---
 const tools: FunctionDeclaration[] = [
@@ -58,8 +58,11 @@ const tools: FunctionDeclaration[] = [
 
 type AiResponse = { type: 'text', content: string } | { type: 'tool_call', calls: ToolCall[] };
 
-const generateGeminiResponse = async (history: ChatMessage[], settings: AiSettings): Promise<AiResponse> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const generateGeminiResponse = async (history: ChatMessage[], settings: ConnectionSettings): Promise<AiResponse> => {
+    if (!settings.geminiApiKey) {
+        return { type: 'text', content: 'Gemini API Key is not configured. Please add it in Settings.' };
+    }
+    const ai = new GoogleGenAI({ apiKey: settings.geminiApiKey });
     const model = 'gemini-2.5-flash';
 
     // Build the history in the format Gemini expects
@@ -79,7 +82,7 @@ const generateGeminiResponse = async (history: ChatMessage[], settings: AiSettin
              const functionResponse = {
                 functionResponse: {
                     name: msg.toolName,
-                    response: { result: msg.content } // FIX: Changed 'content' to 'result' to match API expectations
+                    response: { result: msg.content }
                 }
             };
             contents.push({ role: 'function', parts: [functionResponse] });
@@ -126,7 +129,7 @@ const generateGeminiResponse = async (history: ChatMessage[], settings: AiSettin
     }
 };
 
-const generateOllamaResponse = async (history: ChatMessage[], settings: AiSettings): Promise<AiResponse> => {
+const generateOllamaResponse = async (history: ChatMessage[], settings: ConnectionSettings): Promise<AiResponse> => {
     const ollamaHistory = history.map(msg => {
         switch (msg.role) {
             case 'user':
@@ -218,7 +221,7 @@ const generateOllamaResponse = async (history: ChatMessage[], settings: AiSettin
 
 export const generateChatResponse = async (
     history: ChatMessage[],
-    settings: AiSettings,
+    settings: ConnectionSettings,
     allPeople: Person[], // For context
 ): Promise<AiResponse> => {
     if (settings.provider === 'gemini') {
