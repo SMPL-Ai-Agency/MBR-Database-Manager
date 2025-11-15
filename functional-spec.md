@@ -1,11 +1,11 @@
-# My Black :[ROOTS] Database Manager
+# My Black :[ROOTS] Dataset Builder
 ## Functional Specification (Aligned With SQL Schema)
 
 ---
 
 ## Executive Summary
 
-My Black :[ROOTS] Database Manager is a browser-based genealogy and AI dataset-building system designed to preserve, explore, and elevate Black family heritage. The application integrates structured genealogy management, AI-assisted insights, dataset creation for custom model fine-tuning, and a built-in cultural feedback loop.
+My Black :[ROOTS] Database Builder is a browser-based genealogy and AI dataset-building system designed to preserve, explore, and elevate Black family heritage. The application integrates structured genealogy management, AI-assisted insights, dataset creation for custom model fine-tuning, and a built-in cultural feedback loop.
 
 The backend is powered by a Supabase PostgreSQL database containing:
 
