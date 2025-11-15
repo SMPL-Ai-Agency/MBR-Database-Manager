@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE OR REPLACE FUNCTION public.update_timestamp()
 RETURNS TRIGGER
@@ -223,7 +224,6 @@ WITH home AS (
     FROM public.persons
     WHERE is_home_person = TRUE
 ),
-
 siblings AS (
     SELECT 
         p.id,
@@ -247,7 +247,6 @@ siblings AS (
         ON (p.mother_id = h.mother_id OR p.father_id = h.father_id)
        AND p.id <> h.home_id
 ),
-
 aunts_uncles AS (
     SELECT
         p.id,
@@ -286,7 +285,6 @@ aunts_uncles AS (
         (p.mother_id = gp.mother_id OR p.father_id = gp.father_id)
         AND p.id <> gp.id
 ),
-
 nieces_nephews AS (
     SELECT
         p.id,
@@ -308,7 +306,6 @@ nieces_nephews AS (
     FROM public.persons p
     INNER JOIN siblings s ON p.mother_id = s.id OR p.father_id = s.id
 ),
-
 cousins AS (
     SELECT
         c.id,
@@ -327,7 +324,6 @@ cousins AS (
     INNER JOIN aunts_uncles au 
         ON c.mother_id = au.id OR c.father_id = au.id
 )
-
 SELECT * FROM siblings
 UNION ALL
 SELECT * FROM aunts_uncles
@@ -663,6 +659,51 @@ BEGIN
   ) THEN
     CREATE POLICY chat_history_insert
       ON public.chat_history
+      FOR INSERT
+      TO authenticated
+      WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
+  END IF;
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS public.embeddings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  dataset_id UUID REFERENCES public.dataset(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  embedding vector(768) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_dataset ON public.embeddings(dataset_id);
+CREATE INDEX IF NOT EXISTS idx_embeddings_vector ON public.embeddings USING ivfflat (embedding vector_l2_ops);
+
+ALTER TABLE IF EXISTS public.embeddings ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy
+    WHERE polname = 'embeddings_select'
+      AND polrelid = 'public.embeddings'::regclass
+  ) THEN
+    CREATE POLICY embeddings_select
+      ON public.embeddings
+      FOR SELECT
+      TO PUBLIC
+      USING (true);
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy
+    WHERE polname = 'embeddings_insert'
+      AND polrelid = 'public.embeddings'::regclass
+  ) THEN
+    CREATE POLICY embeddings_insert
+      ON public.embeddings
       FOR INSERT
       TO authenticated
       WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
