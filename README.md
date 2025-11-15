@@ -1,5 +1,5 @@
 <div align="center">
-'imamge here'
+# image here
 </div>
 
 # Run and deploy your AI Studio app
