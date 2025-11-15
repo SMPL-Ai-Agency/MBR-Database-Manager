@@ -12,11 +12,11 @@ The backend is powered by a Supabase PostgreSQL database containing:
 - **Core Tables:** `persons`, `marriages`
 - **Relationship Views:** `ancestry_relations`, `descendants_relations`, `lateral_relations`
 - **Trace Views:** paternal/maternal haplogroup & enslaved traces
-- **AI Tables:** `dataset`, `feedback`, `chat_history`
+- **AI Tables:** `dataset`, `feedback`, `chat_history`, `embeddings` (pgvector-based vector store)
 
 Two AI agents drive the experience:
 - **Agent 1:** Genealogy expert using views and feedback memory.
-- **Agent 2:** Dataset builder that converts user interactions, feedback, and genealogy records into training examples for models such as gpt-oss:20b and 120b.
+- **Agent 2:** Dataset builder that converts user interactions, feedback, and genealogy records into training examples for models such as gpt-oss:20b and 120b, and writes embeddings for vector search.
 
 This system turns personal Black family history into a living AI-powered knowledge environment.
 
@@ -75,6 +75,7 @@ Agent 2 builds new dataset entries by:
    - Google Sheets  
    - `dataset` table in Supabase  
    - Optional: `dataset_sheet_mirror`
+5. Optionally generating vector embeddings for each dataset row and storing them in the `embeddings` table for similarity search, deduplication, and retrieval.
 
 This produces a clean dataset ready for Ollama fine-tuning.
 
@@ -101,7 +102,7 @@ This feedback directly affects:
 
 ## 2.1 Initial Setup
 - Configure Supabase URL & key.
-- Test database structure.
+- Test database structure (required tables, views, and the `embeddings` vector table).
 - Optionally enter Demo Mode (preloaded data).
 
 ## 2.2 Navigation
@@ -116,13 +117,13 @@ This feedback directly affects:
 ## 2.3 Settings View
 
 **Database Connection:**  
-- Tests all required tables + views.
+- Tests all required tables + views + AI tables (`dataset`, `feedback`, `chat_history`, `embeddings`).
 
 **Agent 1 — Genealogy Q&A:**  
 - Uses views + persons + marriages + feedback.
 
 **Agent 2 — Dataset Builder:**  
-- Uses dataset + feedback + chat_history + all relationship views.
+- Uses dataset + feedback + chat_history + all relationship views, and can use the `embeddings` table for similarity-based example retrieval and refinement.
 
 ---
 
@@ -177,6 +178,7 @@ Manage dataset entries with:
 - Automatic example generation:
   - “Create 10 examples using paternal haplogroup trace.”
   - “Add dataset entries based on feedback.”
+- (Optionally) show whether an embedding exists for each dataset row for downstream vector search.
 
 All dataset rows go into Supabase AND optionally into Google Sheets.
 
@@ -217,6 +219,7 @@ Performs:
 - Dataset row creation  
 - Sheet mirroring  
 - Versioning  
+- (Optionally) embedding creation and similarity checks via the `embeddings` table
 
 ---
 
@@ -226,3 +229,4 @@ Performs:
 - Durable AI memory via feedback and dataset refinement.
 - Demo mode for frictionless onboarding.
 - Structured, export-ready dataset creation for AI training.
+- Optional vector search over embeddings for higher-quality dataset curation and retrieval.
