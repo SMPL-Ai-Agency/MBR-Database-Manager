@@ -1,11 +1,11 @@
-# My Black :[ROOTS] Database Manager  
+# My Black :[ROOTS] Dataset Builder  
 A Genealogy + AI Dataset Builder for Black American Family Heritage
 
 ---
 
 ## Overview
 
-**My Black :[ROOTS] Database Manager** is a browser-based application designed to help users preserve, explore, and analyze **Black American family heritage** with the support of advanced AI.  
+**My Black :[ROOTS] Dataset Builder** is a browser-based application designed to help users preserve, explore, and analyze **Black American family heritage** with the support of advanced AI.  
 It combines:
 
 - Structured genealogy management  
@@ -16,7 +16,7 @@ It combines:
 - Vector-based embeddings for search and refinement  
 - A cultural feedback loop for improving model accuracy  
 
-The database is built on **Supabase PostgreSQL**, with recursive SQL views, pgvector embeddings, robust RLS rules, and automated timestamp triggers.
+The system is built on **Supabase PostgreSQL**, with recursive SQL views, pgvector embeddings, robust RLS rules, and automated timestamp triggers.
 
 This project powers the “My Black :[ROOTS]” initiative, enabling users to build truthful, historically grounded family archives and generate training datasets for custom AI models like **gpt-oss:20b** and **gpt-oss:120b**.
 
@@ -38,13 +38,11 @@ The application uses multiple SQL views to compute relationships without requiri
 
 - `ancestry_relations`  
 - `descendants_relations`  
-- `lateral_relations` (siblings, aunts/uncles, cousins, nieces/nephews)  
+- `lateral_relations`  
 - `paternal_haplogroup_trace`  
 - `maternal_haplogroup_trace`  
 - `paternal_enslaved_trace`  
 - `maternal_enslaved_trace`  
-
-All views are fully recursive, dynamic, and aligned to the Home Person.
 
 ---
 
@@ -52,23 +50,22 @@ All views are fully recursive, dynamic, and aligned to the Home Person.
 
 ### Agent 1 — Genealogy Q&A Agent  
 - Reads from persons, marriages, and all relationship views  
-- Incorporates user feedback as memory  
+- Uses feedback memory to prevent repeated errors  
 - Generates historically accurate, culturally aware responses  
-- Avoids repeating past errors  
 
 ### Agent 2 — Dataset Builder Agent  
 - Generates dataset entries for AI training  
 - Uses persons, marriages, all views, feedback, and chat history  
 - Anonymizes content automatically  
-- Stores examples in Supabase and optionally Google Sheets  
-- Generates **vector embeddings** for similarity search  
-- Enables refinement, deduplication, and versioning  
+- Saves results to Supabase and optionally Google Sheets  
+- Produces vector embeddings (pgvector)  
+- Supports refinement, deduplication, and versioning  
 
 ---
 
 ## 📦 SQL Schema
 
-The database includes:
+The system includes:
 
 ### Core Tables
 - `persons`  
@@ -86,17 +83,17 @@ The database includes:
 
 ### Triggers
 - Auto-updating timestamps  
-- Enforcing one home person  
-- Dataset version tracking  
+- Ensuring only one home person  
+- Dataset version handling  
 
 ### Extensions
 - `uuid-ossp`  
-- `vector` (for pgvector embeddings)
+- `vector` (pgvector)
 
 ### Security
-- Full **Row Level Security (RLS)** for all core and AI tables  
-- Public read allowed for genealogy views  
-- Authenticated insert/update rules  
+- Complete **Row Level Security (RLS)**  
+- Public SELECT for genealogy  
+- Authenticated INSERT/UPDATE for AI tables  
 
 A full SQL bootstrap file is included in the repository.
 
@@ -105,30 +102,34 @@ A full SQL bootstrap file is included in the repository.
 ## 🧭 Application Views
 
 ### Dashboard
-Shows dynamic, data-driven summaries:
-- Ancestry, descendants, lateral relations  
-- Haplogroup and enslaved-ancestor traces  
-- Dataset status  
-- Feedback status  
-- Chat panels for both agents  
+Displays:
+- Home Person  
+- Ancestry / Descendant summaries  
+- Lateral relations  
+- Enslaved traces  
+- Haplogroup traces  
+- Dataset summary  
+- Feedback summary  
+- Agent 1 and Agent 2 chat panels  
 
-### People View
-- Full list of all persons  
-- Search, edit, and relationship navigation  
+### People View  
+- Search, browse, edit persons  
+- Manage parents, haplogroups, DNA, enslaved status  
 - Set Home Person  
-- Add to dataset  
+- Send person to Dataset Builder  
 
-### Dataset View
-- Inspect dataset entries  
-- Generate new examples using Agent 2  
+### Dataset View  
+- Review dataset entries  
+- Auto-generate examples with Agent 2  
 - Export for fine-tuning  
-- Track embeddings  
+- View embeddings  
 
-### Feedback View
-- See user-submitted correctness ratings  
-- Send items to Agent 2 for dataset refinement  
+### Feedback View  
+- All user feedback  
+- Inspect comments  
+- Send to Agent 2 for dataset improvements  
 
-### Settings View
+### Settings  
 - Database connection  
 - Agent configuration  
 - Light/Dark mode  
@@ -137,66 +138,58 @@ Shows dynamic, data-driven summaries:
 
 ## 🔄 AI Feedback Loop
 
-The system uses a three-layer improvement cycle:
+1. User chats with Agent 1  
+2. User rates the response (thumbs up/down)  
+3. Feedback saved  
+4. Agent 2 generates improved dataset rows  
+5. Embeddings update  
+6. Future answers improve automatically  
 
-1. **User interacts with Agent 1**  
-2. **User submits feedback** (thumbs up/down + comments)  
-3. **Agent 2 refines dataset + embeddings**  
-4. **Future answers improve automatically**
-
-This creates a long-term, culturally consistent memory system.
+This creates a long-term, self-correcting memory system.
 
 ---
 
-## 🧠 Embeddings & Vector Search (pgvector)
+## 🧠 Embeddings (pgvector)
 
 The `embeddings` table stores:
 
-- Dataset row association  
-- Text content  
-- A 768-dimension embedding vector  
+- Linked dataset entry  
+- Raw text  
+- 768-dimension embedding vector  
 - Timestamps  
 
-An IVFFLAT index with `lists = 100` enables fast similarity search.
+An IVFFLAT index speeds similarity search and dataset refinement.
 
 Agent 2 uses embeddings for:
 - Deduplication  
-- Smart dataset refinement  
-- Similarity retrieval  
-- Creating new examples based on related content  
+- Context matching  
+- Training example generation  
+- Version-aware refinement  
 
 ---
 
 ## 🛠 Technology Stack
 
-- **Supabase PostgreSQL** (primary database)  
-- **pgvector** (vector search)  
-- **TypeScript + Browser UI** (client)  
-- **AI Agents** (OpenAI / gpt-oss models via user-configurable settings)  
-- **Google Sheets** (optional dataset mirror)  
-- **n8n** (optional workflow automation)  
+- Supabase PostgreSQL  
+- pgvector  
+- Browser-based UI (TypeScript)  
+- AI models (OpenAI gpt-oss or user-specified)  
+- Google Sheets (optional mirror)  
+- Optional n8n automation  
 
 ---
 
-## 🚀 Goals of the Project
+## 🚀 Mission
 
-- Preserve Black American lineage with accuracy and respect  
+- Preserve **Black American family heritage** with accuracy  
 - Provide culturally aware genealogical AI assistance  
-- Generate high-quality datasets for custom model fine-tuning  
-- Build a lasting, private archive of family history  
-- Enable future generations to explore ancestry with clarity  
+- Create high-quality fine-tuning datasets  
+- Build a durable, private historical archive  
 
 ---
 
-## 🔐 Privacy & Security
+## 📁 Repository Structure
 
-- All genealogy and feedback data remain under the user's control  
-- No external storage without explicit configuration  
-- RLS ensures correct access permissions  
-- Demo mode available for safe onboarding  
-
----
-
-## 📁 Repository Contents
+To be updated
 
 
