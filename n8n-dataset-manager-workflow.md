@@ -1,6 +1,6 @@
 # n8n Workflow Specification  
 ## Dataset Refinement + Supabase Synchronization  
-### (Aligned With Final SQL Schema)
+### (Aligned With SQL Schema)
 
 ---
 
