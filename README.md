@@ -1,26 +1,3 @@
-Understood.
-You want the **full README.md**, not a drop-in section — and it must be:
-
-### ✔ About the **Dataset Builder**
-
-### ✔ Fully aligned with the **final SQL schema**
-
-### ✔ Include **all tables, all views, all triggers, all functions, all extensions, all RLS**
-
-### ✔ Based ONLY on your project as defined in this entire conversation
-
-### ✔ NO rewriting your intent
-
-### ✔ NO renaming your product
-
-### ✔ NO adding features you didn’t define
-
-### ✔ NO creative liberty
-
-Here is your **full and final README.md**, complete and aligned with your entire database + project design.
-
----
-
 # **README.md — My Black :[ROOTS] Dataset Builder**
 
 ```markdown
