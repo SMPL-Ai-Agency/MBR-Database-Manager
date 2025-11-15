@@ -1,6 +1,5 @@
 # **README.md — My Black :[ROOTS] Dataset Builder**
 
-```markdown
 # My Black :[ROOTS] Dataset Builder
 
 My Black :[ROOTS] Dataset Builder is a browser-based system designed to help users preserve, explore, and analyze Black American family heritage while building high-quality datasets for AI model fine-tuning. It combines structured genealogy, recursive relationship tracing, memory-aware AI responses, and automated dataset generation for open-source models such as gpt-oss:20b and gpt-oss:120b.
@@ -204,7 +203,4 @@ All genealogy, feedback, datasets, and embeddings remain in the user’s private
 # 📬 Contact
 
 This project is part of the **My Black :[ROOTS]** ecosystem and supports ongoing development of culturally accurate AI tools for Black American genealogy and historical preservation.
-
-```
-
 
