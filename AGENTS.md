@@ -1,4 +1,4 @@
 To be completed
 
-project_checklist.md
 AGENTS.md
+project_checklist.md
