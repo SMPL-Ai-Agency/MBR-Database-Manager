@@ -129,6 +129,7 @@ This feedback directly affects:
 ## 2.4 Dashboard View
 
 Shows:
+**NOTE:** Anything already existing in the current UI. Never remove what is there unless directed. This spec was written after the UI protype was built and only needs adjust. The items below may or may not be present already. If not add them if so adjust as directed.
 - Home person
 - Ancestry view summary  
 - Descendants view summary  
