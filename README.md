@@ -3,7 +3,7 @@
 My Black :[ROOTS] Dataset Builder is a browser-based system designed to help users preserve, explore, and analyze George Freeney Jr's family heritage while building high-quality datasets for AI model fine-tuning. It combines structured genealogy, recursive relationship tracing, memory-aware AI responses, and automated dataset generation for open-source models such as gpt-oss:20b and gpt-oss:120b.
 
 ### NOTE:
-ALWAYS refer to and review the repo's current supabase.sql file for this project.
+ALWAYS refer to, and review the repo's current supabase.sql file for this project.
 
 The platform integrates a full Supabase PostgreSQL schema, recursive SQL views, pgvector embeddings, cultural feedback loops, and two AI agents:  
 - **Agent 1** answers genealogy questions using database tables and views + chat history, feedback memory, and embedding tables.  
