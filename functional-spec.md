@@ -1,5 +1,5 @@
 # My Black :[ROOTS] Database Manager
-## Functional Specification (Aligned With Final SQL Schema)
+## Functional Specification (Aligned With SQL Schema)
 
 ---
 
